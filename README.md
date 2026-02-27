@@ -37,17 +37,10 @@ Output is one filename per line, ready to pipe.
 | `--rt N` | 50 | Min Rotten Tomatoes tomatometer (0-100) |
 | `--imdb N` | 5.0 | Min IMDB rating (0-10) |
 | `--api-key KEY` | .env | OMDb API key |
-| `--flag-type TYPE...` | none | Flag entire types as bad (no API call) |
+| `--flag-not-found` | off | Flag movies not found in IMDB/RT as bad |
 | `--dry-run` | off | Parse filenames only, no API calls |
 | `--delay N` | 0.5 | Seconds between API calls |
 | `--debug` | off | Show scores and details on stderr |
-
-## Content types (--flag-type)
-
-| Type | Description |
-|---|---|
-| `movie` | Films |
-| `tv` | TV shows (detected by S01E01 pattern) |
 
 ## Examples
 
@@ -58,8 +51,8 @@ find /movies/ -type f | python filter_bad_movies.py --dry-run
 # Find bad movies with debug info:
 find /movies/ -type f | python filter_bad_movies.py --rt 70 --imdb 7.0 --debug
 
-# Flag all TV shows, score movies:
-find /movies/ -type f | python filter_bad_movies.py --rt 80 --imdb 8.0 --flag-type tv
+# Include movies not found in IMDB/RT:
+find /movies/ -type f | python filter_bad_movies.py --rt 80 --imdb 8.0 --flag-not-found
 
 # Delete bad files:
 find /movies/ -type f | python filter_bad_movies.py --rt 80 --imdb 8.0 | xargs -d'\n' rm -rf

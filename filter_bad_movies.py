@@ -7,7 +7,6 @@ import requests
 
 # -- Config --------------------------------------------------------------------
 
-VALID_TYPES = ("movie", "tv")
 VIDEO_EXT = re.compile(r"\.(mkv|avi|mp4|part|ts|m4v|mov|wmv)$", re.I)
 
 # -- Helpers -------------------------------------------------------------------
