@@ -126,19 +126,12 @@ def main():
     ap.add_argument("--rt", type=int, default=50, help="Min RT score 0-100 (default: 50)")
     ap.add_argument("--imdb", type=float, default=5.0, help="Min IMDB 0-10 (default: 5.0)")
     ap.add_argument("--api-key", default=None, help="OMDb API key")
-    ap.add_argument("--flag-type", nargs="+", default=[], metavar="TYPE",
-                    help="Flag entire types as bad: movie, tv")
+    ap.add_argument("--flag-not-found", action="store_true",
+                    help="Flag movies not found in IMDB/RT as bad")
     ap.add_argument("--dry-run", action="store_true", help="Parse only, no API calls")
     ap.add_argument("--delay", type=float, default=0.5, help="Seconds between API calls")
     ap.add_argument("--debug", action="store_true", help="Show scores/details on stderr")
     args = ap.parse_args()
-
-    flag_types = {t.lower() for t in args.flag_type}
-    bad_types = flag_types - set(VALID_TYPES)
-    if bad_types:
-        print(f"Error: unknown type(s): {', '.join(bad_types)}. "
-              f"Valid: {', '.join(VALID_TYPES)}", file=sys.stderr)
-        sys.exit(1)
 
     load_env()
     api_key = args.api_key or os.environ.get("OMDB_API_KEY") or os.environ.get("OMDBAPIKEY")
@@ -159,9 +152,8 @@ def main():
               + "  ".join(f"{k}:{v}" for k, v in sorted(counts.items())),
               file=sys.stderr)
         for raw, p in entries:
-            flag = " *FLAG*" if p["content_type"] in flag_types else ""
             yr = p.get("year") or "?"
-            print(f"  [{p['content_type']:7s}] {p['title']:45s} ({yr}){flag}",
+            print(f"  [{p['content_type']:7s}] {p['title']:45s} ({yr})",
                   file=sys.stderr)
         return
 
@@ -170,11 +162,6 @@ def main():
 
     for raw, p in entries:
         fname = raw.strip()
-
-        if p["content_type"] in flag_types:
-            dbg(f"  [FLAG ] {p['title']:45s} -- {p['content_type'].upper()}", args.debug)
-            print(fname)
-            continue
 
         ckey = (p["title"].lower(),
                 None if p["content_type"] == "tv" else p["year"],
@@ -187,6 +174,8 @@ def main():
 
         if not result:
             dbg(f"  [?????] {p['title']:45s} -- not found", args.debug)
+            if args.flag_not_found:
+                print(fname)
             continue
 
         bad = score_is_bad(result["imdb"], result["rt"], args.imdb, args.rt)
