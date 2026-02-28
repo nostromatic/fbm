@@ -1,27 +1,5 @@
 #!/usr/bin/env python3
-"""
-Filter video filenames by Rotten Tomatoes / IMDB scores via OMDb API.
-
-Reads filenames (or full paths) from stdin, one per line.
-Lookups are done via OMDb (https://www.omdbapi.com/). An API key is required
-unless --dry-run is used.
-
-Outputs to stdout the paths of files whose scores fall below both thresholds,
-suitable for piping to `xargs -d '\n' rm -rf`.
-
-If --base-dir is given, files that live inside a subfolder of that directory
-will have the subfolder path printed instead of the individual file, so the
-whole folder can be deleted in one shot. Files sitting directly in base-dir
-are printed as-is. Duplicate folder entries are deduplicated automatically.
-
-Usage examples:
-  find /mnt/data/downloads -name '*.mkv' | \
-      python filter_bad_movies.py --base-dir /mnt/data/downloads --debug
-
-  # delete bad items:
-  ... | python filter_bad_movies.py --base-dir /mnt/data/downloads | \
-      xargs -d '\n' rm -rf
-"""
+"""Filter video filenames by Rotten Tomatoes / IMDB scores via OMDb API."""
 
 import sys, re, os, time, argparse
 from pathlib import Path
@@ -164,7 +142,6 @@ def main():
         description="Output filenames scoring below thresholds (pipe to rm).")
     ap.add_argument("--rt", type=int, default=50, help="Min RT score 0-100 (default: 50)")
     ap.add_argument("--imdb", type=float, default=5.0, help="Min IMDB 0-10 (default: 5.0)")
-    ap.add_argument("--api-key", default=None, help="OMDb API key")
     ap.add_argument("--flag-not-found", action="store_true",
                     help="Flag movies not found in IMDB/RT as bad")
     ap.add_argument("--dry-run", action="store_true", help="Parse only, no API calls")
@@ -175,9 +152,9 @@ def main():
     args = ap.parse_args()
 
     load_env()
-    api_key = args.api_key or os.environ.get("OMDB_API_KEY") or os.environ.get("OMDBAPIKEY")
+    api_key = os.environ.get("OMDB_API_KEY") or os.environ.get("OMDBAPIKEY")
     if not api_key and not args.dry_run:
-        print("Error: API key required. Use --api-key, OMDB_API_KEY env, or .env",
+        print("Error: API key required. Set OMDB_API_KEY env var or add to .env",
               file=sys.stderr)
         sys.exit(1)
 
