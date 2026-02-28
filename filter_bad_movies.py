@@ -23,7 +23,7 @@ def load_env():
 
 def parse(raw):
     """Parse a video filename into {title, year, content_type, omdb_type} or None."""
-    name = raw.strip().strip("'\"").replace("'\\''", "'").strip()
+    name = Path(raw.strip().strip("'\"").replace("'\\''" , "'").strip()).name
     if not VIDEO_EXT.search(name):
         return None
 
@@ -151,8 +151,7 @@ def main():
               + "  ".join(f"{k}:{v}" for k, v in sorted(counts.items())),
               file=sys.stderr)
         for raw, p in entries:
-            yr = p.get("year") or "?"
-            print(f"  [{p['content_type']:7s}] {p['title']:45s} ({yr})",
+            print(f"  [{p['content_type']:7s}] {p['title']}",
                   file=sys.stderr)
         return
 
