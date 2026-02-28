@@ -1,5 +1,27 @@
 #!/usr/bin/env python3
-"""Filter video filenames by Rotten Tomatoes / IMDB scores via OMDb API."""
+"""
+Filter video filenames by Rotten Tomatoes / IMDB scores via OMDb API.
+
+Reads filenames (or full paths) from stdin, one per line.
+Lookups are done via OMDb (https://www.omdbapi.com/). An API key is required
+unless --dry-run is used.
+
+Outputs to stdout the paths of files whose scores fall below both thresholds,
+suitable for piping to `xargs -d '\n' rm -rf`.
+
+If --base-dir is given, files that live inside a subfolder of that directory
+will have the subfolder path printed instead of the individual file, so the
+whole folder can be deleted in one shot. Files sitting directly in base-dir
+are printed as-is. Duplicate folder entries are deduplicated automatically.
+
+Usage examples:
+  find /mnt/data/downloads -name '*.mkv' | \
+      python filter_bad_movies.py --base-dir /mnt/data/downloads --debug
+
+  # delete bad items:
+  ... | python filter_bad_movies.py --base-dir /mnt/data/downloads | \
+      xargs -d '\n' rm -rf
+"""
 
 import sys, re, os, time, argparse
 from pathlib import Path
@@ -113,6 +135,24 @@ def score_is_bad(imdb, rt, min_imdb, min_rt):
     return False
 
 
+def resolve_output_path(raw, base_dir):
+    """Return the path to print for deletion.
+
+    If base_dir is set and the file lives in a subfolder of it, return the
+    immediate child directory of base_dir instead of the file itself.
+    """
+    path = Path(raw.strip())
+    if not base_dir:
+        return str(path)
+    try:
+        rel = path.relative_to(base_dir)
+    except ValueError:
+        return str(path)  # not under base_dir, return as-is
+    if len(rel.parts) <= 1:
+        return str(path)  # file is directly inside base_dir
+    return str(base_dir / rel.parts[0])
+
+
 def dbg(msg, debug):
     if debug:
         print(msg, file=sys.stderr)
@@ -130,6 +170,8 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="Parse only, no API calls")
     ap.add_argument("--delay", type=float, default=0.5, help="Seconds between API calls")
     ap.add_argument("--debug", action="store_true", help="Show scores/details on stderr")
+    ap.add_argument("--base-dir", default=None, type=Path,
+                    help="Root download dir; bad files in subfolders output the subfolder path")
     args = ap.parse_args()
 
     load_env()
@@ -151,15 +193,16 @@ def main():
               + "  ".join(f"{k}:{v}" for k, v in sorted(counts.items())),
               file=sys.stderr)
         for raw, p in entries:
-            print(f"  [{p['content_type']:7s}] {p['title']}",
-                  file=sys.stderr)
+            print(f"  {p['title']}", file=sys.stderr)
         return
 
+    base_dir = args.base_dir.resolve() if args.base_dir else None
     cache = {}
+    seen = set()
     dbg(f"Checking {len(entries)} titles (RT>={args.rt}, IMDB>={args.imdb})", args.debug)
 
     for raw, p in entries:
-        fname = raw.strip()
+        fname = resolve_output_path(raw, base_dir)
 
         ckey = (p["title"].lower(),
                 None if p["content_type"] == "tv" else p["year"],
@@ -172,7 +215,8 @@ def main():
 
         if not result:
             dbg(f"  [?????] {p['title']:45s} -- not found", args.debug)
-            if args.flag_not_found:
+            if args.flag_not_found and fname not in seen:
+                seen.add(fname)
                 print(fname)
             continue
 
@@ -184,7 +228,8 @@ def main():
             dbg(f"  [{tag}] {result['found_title']:45s} IMDB={i:>4s} RT={r:>4s}",
                 args.debug)
 
-        if bad:
+        if bad and fname not in seen:
+            seen.add(fname)
             print(fname)
 
 
