@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Filter video filenames by Rotten Tomatoes / IMDB scores via OMDb API."""
 
-import sys, re, os, time, argparse
+import sys, re, os, time, argparse, shutil
 from pathlib import Path
 import requests
 
@@ -135,6 +135,19 @@ def dbg(msg, debug):
     if debug:
         print(msg, file=sys.stderr)
 
+
+def _delete(path):
+    """Delete a file or directory tree."""
+    p = Path(path)
+    try:
+        if p.is_dir():
+            shutil.rmtree(p)
+        else:
+            p.unlink()
+        print(f"  [DELETED] {path}", file=sys.stderr)
+    except OSError as e:
+        print(f"  [ERROR]   {path}: {e}", file=sys.stderr)
+
 # -- Main ---------------------------------------------------------------------
 
 def main():
@@ -147,9 +160,14 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="Parse only, no API calls")
     ap.add_argument("--delay", type=float, default=0.5, help="Seconds between API calls")
     ap.add_argument("--debug", action="store_true", help="Show scores/details on stderr")
+    ap.add_argument("--delete", action="store_true",
+                    help="Delete bad files/folders directly (implies --debug)")
     ap.add_argument("--base-dir", default=None, type=Path,
                     help="Root download dir; bad files in subfolders output the subfolder path")
     args = ap.parse_args()
+
+    if args.delete:
+        args.debug = True
 
     load_env()
     api_key = os.environ.get("OMDB_API_KEY") or os.environ.get("OMDBAPIKEY")
@@ -194,7 +212,10 @@ def main():
             dbg(f"  [?????] {p['title']:45s} -- not found", args.debug)
             if args.flag_not_found and fname not in seen:
                 seen.add(fname)
-                print(fname)
+                if args.delete:
+                    _delete(fname)
+                else:
+                    print(fname)
             continue
 
         bad = score_is_bad(result["imdb"], result["rt"], args.imdb, args.rt)
@@ -207,7 +228,10 @@ def main():
 
         if bad and fname not in seen:
             seen.add(fname)
-            print(fname)
+            if args.delete:
+                _delete(fname)
+            else:
+                print(fname)
 
 
 if __name__ == "__main__":
