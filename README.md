@@ -61,18 +61,13 @@ find /downloads -type f | python filter_bad_movies.py --base-dir /downloads | xa
 
 ## Usage with sudo
 
-When files are owned by root, run the script with `sudo`. To preserve the `.env` API key, pass the env var explicitly:
+The venv python must be called explicitly since root doesn't share your shell environment:
 
 ```sh
 # Direct delete as root:
-find /downloads -type f | sudo -E python filter_bad_movies.py --delete
-
-# Or pass the key explicitly:
-find /downloads -type f | sudo OMDB_API_KEY="$OMDB_API_KEY" python filter_bad_movies.py --delete
+find /downloads -type f | sudo .venv/bin/python filter_bad_movies.py --delete
 
 # Pipe mode with sudo rm:
 find /downloads -type f | python filter_bad_movies.py | sudo xargs -d '\n' rm -rf
 ```
-
-`sudo -E` preserves environment variables. If `.env` is used, make sure the script path is absolute so it can locate the file.
 ```
